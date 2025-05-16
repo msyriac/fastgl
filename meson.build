@@ -14,19 +14,17 @@ sources = files(
 )
 
 # --- find OpenMP ----------------
-openmp = dependency('openmp', required : true)
+omp_dep = dependency('openmp')
 
 # Enable OpenMP for C++ manually
-if openmp.found()
-  add_project_arguments('-fopenmp', language: 'cpp')
-  add_project_link_arguments('-fopenmp', language: 'cpp')
-endif
+add_project_arguments('-fopenmp', language: 'cpp')
+add_project_link_arguments('-fopenmp', language: 'cpp')
 
 
 extension = py.extension_module(
   '_fastgl',
   sources             : sources,
-  dependencies        : [pybind, openmp],
+  dependencies        : [pybind, omp_dep],
   include_directories : inc,
   subdir              : 'fastgl',      
   install             : true,
