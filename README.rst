@@ -1,7 +1,7 @@
 FastGL
 ======
 
-``FastGL`` computes Gauss-Legendre quadrature nodes and weights O(1000)x faster than `scipy.special.roots_legendre`. It does so by implementing an iteration-free algorithm developed in `Bogaert (2014)<https://epubs.siam.org/doi/abs/10.1137/140954969>`_. This Python package is a thin wrapper around the C++ code from that paper.  A classical iterative algorithm from Kendrick Smith is also implemented, which is around 20x faster than the SciPy implementation. Both are OpenMP parallelized. 
+``FastGL`` computes Gauss-Legendre quadrature nodes and weights O(1000)x faster than `scipy.special.roots_legendre`. It does so by implementing an iteration-free algorithm developed in `Bogaert (2014) <https://epubs.siam.org/doi/abs/10.1137/140954969>`_. This Python package is a thin wrapper around the C++ code from that paper.  A classical iterative algorithm from Kendrick Smith is also implemented, which is around 20x faster than the SciPy implementation. Both are OpenMP parallelized. 
 
 
 * Free software: BSD license
