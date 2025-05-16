@@ -33,12 +33,16 @@ jobs:
     runs-on: macos-latest
     env:
       CC: gcc-14
-      CXX: gcc-14
+      CXX: g++-14
       FC: gfortran-14
-      DUCC0_NUM_THREADS: 2
 
     steps:
       - uses: actions/checkout@v4
+      - name: Install GCC + OpenMP runtime
+        run: |
+          brew install gcc@14
+          echo "Using $(gcc-14 --version | head -1)"
+        
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -70,12 +74,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+      - name: Install GCC + OpenMP runtime (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install gcc@14
+        
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          FC: gfortran-12
-          CC: gcc-12
+          CC: gcc-14
+          CXX: g++-14
+          FC: gfortran-14
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
       - uses: actions/upload-artifact@v4
@@ -84,6 +92,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos_arm:
+
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -94,11 +103,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install GCC + OpenMP runtime
+        run: brew install gcc@14
+        
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          FC: gfortran-12
-          CC: gcc-12
+          CC: gcc-14
+          CXX: g++-14
+          FC: gfortran-14
           MACOSX_DEPLOYMENT_TARGET: "14.0"
 
       - uses: actions/upload-artifact@v4
