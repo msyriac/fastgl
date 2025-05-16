@@ -21,6 +21,7 @@ test = [
     'pytest-cov>=2.6',
     'coveralls>=1.5',
     'pytest>=4.6',
+    'numpy'
 ]
 
 
