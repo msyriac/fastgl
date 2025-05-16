@@ -7,7 +7,7 @@ name = "fastgl"
 version = "0.1.0"
 description = "Python bindings for the Fast Gauss-Legendre (FastGL) algorithm"
 authors = [{name = "Mathew Madhavacheril", email = "mathewsyriac@gmail.com"}]
-readme = "README.md"
+readme = "README.rst"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 
