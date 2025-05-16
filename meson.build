@@ -14,7 +14,7 @@ sources = files(
 )
 
 # --- find OpenMP ----------------
-openmp = dependency('openmp', required : false)
+openmp = dependency('openmp', required : true)
 
 # Enable OpenMP for C++ manually
 if openmp.found()
