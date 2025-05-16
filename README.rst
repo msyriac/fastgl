@@ -6,6 +6,22 @@ FastGL computes Gauss-Legendre quadrature nodes and weights O(1000)x faster than
 
 * Free software: BSD license
 
+Usage
+-----
+
+This module contains functions to compute the sample points and weights for Gauss-Legendre
+quadrature given the quadrature order. 
+
+.. code-block:: python
+
+		>>> from fastgl import roots_legendre
+		>>> N = 100
+		>>> mu, w_mu = roots_legendre(N) # FastGL calculation
+		>>> mu, w_mu = roots_legendre_brute(N) # Classical Iterative calculation
+
+Here, ``mu`` is a numpy array containing the cosine of the sample points (ranging from -1 to 1) and ``w_mu`` is a numpy array containing the corresponding quadrature weights.
+
+
 
 Installing
 ----------
@@ -50,9 +66,6 @@ perform micro-builds on usage in this case):
    $ pip install --upgrade pip meson ninja meson-python cython numpy pybind11
    $ pip install  --no-build-isolation --editable .
 
-
-Usage
------
 
 
    
