@@ -5,7 +5,6 @@ FastGL computes Gauss-Legendre quadrature nodes and weights O(1000)x faster than
 
 
 * Free software: BSD license
-* Documentation: https://fastgl.readthedocs.io.
 
 
 Installing
@@ -48,10 +47,15 @@ perform micro-builds on usage in this case):
 
 .. code-block:: console
    
-   $ pip install --upgrade pip meson ninja meson-python cython numpy
+   $ pip install --upgrade pip meson ninja meson-python cython numpy pybind11
    $ pip install  --no-build-isolation --editable .
 
 
+Usage
+-----
+
+
+   
 Contributions
 -------------
 
