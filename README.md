@@ -1,7 +1,7 @@
 FastGL
 ======
 
-``FastGL`` computes Gauss-Legendre quadrature 
+``FastGL`` computes Gauss-Legendre quadrature nodes and weights O(1000)x faster than `scipy.special.roots_legendre`. It does so by implementing an iteration-free algorithm developed in [Bogaert (2014)](https://epubs.siam.org/doi/abs/10.1137/140954969).  A classical iterative algorithm is also implemented, which is around 20x faster than the SciPy implementation. Both are OpenMP parallelized.
 
 
 * Free software: BSD license
@@ -17,7 +17,7 @@ Make sure your ``pip`` tool is up-to-date. To install ``fastgl``, run:
 		
    $ pip install fastgl --user
 
-This will install a pre-compiled binary suitable for your system (only Linux and Mac OS X with Python>=3.9 are supported). 
+This will install a pre-compiled binary suitable for your system (only Linux and Mac OS X with Python>=3.10 are supported). 
 
 If you require more control over your installation, e.g. using Intel compilers, please see the section below on compiling from source.
 
@@ -62,5 +62,5 @@ If you have write access to this repository, please:
 3. merge or rebase to get in sync with master
 4. submit a pull request on github
 
-If you do not have write access, create a fork of this repository and proceed as described above. For more details, see Contributing_.
+If you do not have write access, create a fork of this repository and proceed as described above.
   
