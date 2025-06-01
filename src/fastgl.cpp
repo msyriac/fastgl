@@ -475,7 +475,7 @@ namespace fastgl
             theta[k - 1]  = cos(qp.theta);
             weight[k - 1] = qp.weight;
         }
-        return {std::move(theta), std::move(weight)};
+        return {theta,weight};
     }
 
 
