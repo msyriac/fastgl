@@ -86,6 +86,16 @@ jobs:
           FC: gfortran-14
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
+
+      - name: Install and test wheel
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install wheelhouse/*.whl
+          pip install pytest
+          pytest -s tests  # Adjust path if needed          
+
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
