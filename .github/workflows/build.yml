@@ -87,15 +87,6 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 
-      - name: Install and test wheel
-        run: |
-          python -m venv venv
-          source venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install wheelhouse/*.whl
-          pip install pytest
-          pytest -s tests  # Adjust path if needed          
-
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
@@ -123,11 +114,60 @@ jobs:
           CXX: g++-14
           FC: gfortran-14
           MACOSX_DEPLOYMENT_TARGET: "14.0"
+         
 
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+
+  test_built_wheels:
+    name: "Test built wheels on ${{ matrix.python-version }}"
+    needs: [build_wheels, build_wheels_macos_arm]
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cibw-wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Find and install matching wheel
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          
+          PYVER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+          echo "Looking for wheel matching: $PYVER"
+
+          WHEEL=$(find dist -name "*${PYVER}*.whl" | head -n 1)
+          if [ -z "$WHEEL" ]; then
+            echo "No matching wheel found for $PYVER"
+            exit 1
+          fi
+
+          echo "Installing wheel: $WHEEL"
+          pip install "$WHEEL"
+
+          # Install test deps if needed
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          source venv/bin/activate
+          pytest -s tests
+
 
 
   build_sdist:
