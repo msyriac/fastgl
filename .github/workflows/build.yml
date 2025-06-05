@@ -148,20 +148,7 @@ jobs:
         run: |
           python -m pip install -U pip setuptools pytest
 
-          PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-
-          echo "Looking for wheel for Python: $PY_VER on manylinux_2_17_x86_64"
-          WHEEL=$(find dist -name "*${PY_VER}*manylinux_2_17_x86_64*.whl" | head -n 1)
-
-          if [ -z "$WHEEL" ]; then
-            echo "No matching wheel found!"
-            echo "Available wheels:"
-            find dist -name "*.whl"
-            exit 1
-          fi
-
-          echo "Installing $WHEEL"
-          python -m pip install "$WHEEL"
+          pip install fastgl --no-index --find-links=dist/
 
           echo "Running tests"
           pytest -v
@@ -194,26 +181,7 @@ jobs:
           python -m pip install --upgrade pip setuptools
           python -m pip install pytest
 
-          PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-          ARCH=$(uname -m)
-          if [[ "$ARCH" == "arm64" ]]; then
-            PLATFORM_TAG="arm64"
-          else
-            PLATFORM_TAG="x86_64"
-          fi
-
-          echo "Looking for wheel matching: $PY_VER and $PLATFORM_TAG"
-          WHEEL=$(find dist -name "*${PY_VER}*${PLATFORM_TAG}*.whl" | head -n 1)
-
-          if [ -z "$WHEEL" ]; then
-            echo "No matching wheel found for $PY_VER on $PLATFORM_TAG"
-            echo "Available wheels:"
-            find dist -name "*.whl"
-            exit 1
-          fi
-
-          echo "Installing $WHEEL"
-          python -m pip install "$WHEEL"
+          python -m pip install fastgl --no-index --find-links=dist/
 
           echo "Running tests against installed wheel"
           pytest -v
