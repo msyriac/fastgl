@@ -121,40 +121,40 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
-  test_built_wheels_linux:
-    name: Test built wheels (Linux)
-    needs: build_wheels
+  test_wheels_linux:
+    name: Test built wheels on Linux
+    needs: [build_wheels]
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python: ["3.10", "3.11", "3.12"]
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
 
       - name: Download built wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: cibw-wheels-ubuntu-*
+          pattern: cibw-wheels-*
           path: dist
           merge-multiple: true
 
-      - name: Install matching wheel and run tests
+      - name: Install and test wheel
         run: |
-          python -m pip install --upgrade pip setuptools
-          python -m pip install pytest
+          python -m pip install -U pip setuptools pytest
 
           PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-          PLATFORM=$(python -c "import distutils.util; print(distutils.util.get_platform().replace('-', '_').replace('.', '_'))")
 
-          echo "Looking for wheel for Python: $PY_VER on Platform: $PLATFORM"
-          WHEEL=$(find dist -name "*${PY_VER}*${PLATFORM}*.whl" | head -n 1)
+          echo "Looking for wheel for Python: $PY_VER on manylinux_2_17_x86_64"
+          WHEEL=$(find dist -name "*${PY_VER}*manylinux_2_17_x86_64*.whl" | head -n 1)
 
           if [ -z "$WHEEL" ]; then
-            echo "No matching wheel found for $PY_VER on $PLATFORM"
+            echo "No matching wheel found!"
             echo "Available wheels:"
             find dist -name "*.whl"
             exit 1
@@ -163,88 +163,50 @@ jobs:
           echo "Installing $WHEEL"
           python -m pip install "$WHEEL"
 
-          echo "Running tests against installed wheel"
+          echo "Running tests"
           pytest -v
 
-  test_built_wheels_macos:
-    name: Test built wheels (macOS)
-    needs: build_wheels
-    runs-on: macos-13  # Or macos-14 if you're testing Apple Silicon
-
+  test_wheels_macos:
+    name: Test built wheels on ${{ matrix.os }}
+    needs: [build_wheels, build_wheels_macos_arm]
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        os: [macos-13, macos-14]  # macos-13: x86_64, macos-14: arm64
 
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.10'
 
       - name: Download built wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: cibw-wheels-macos-*
+          pattern: cibw-wheels-*
           path: dist
           merge-multiple: true
 
-      - name: Install matching wheel and run tests
+      - name: Install and test matching wheel
         run: |
           python -m pip install --upgrade pip setuptools
           python -m pip install pytest
 
           PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-          PLATFORM=$(python -c "import distutils.util; print(distutils.util.get_platform().replace('-', '_').replace('.', '_'))")
-
-          echo "Looking for wheel for Python: $PY_VER on Platform: $PLATFORM"
-          WHEEL=$(find dist -name "*${PY_VER}*${PLATFORM}*.whl" | head -n 1)
-
-          if [ -z "$WHEEL" ]; then
-            echo "No matching wheel found for $PY_VER on $PLATFORM"
-            echo "Available wheels:"
-            find dist -name "*.whl"
-            exit 1
+          ARCH=$(uname -m)
+          if [[ "$ARCH" == "arm64" ]]; then
+            PLATFORM_TAG="arm64"
+          else
+            PLATFORM_TAG="x86_64"
           fi
 
-          echo "Installing $WHEEL"
-          python -m pip install "$WHEEL"
-
-          echo "Running tests against installed wheel"
-          pytest -v
-
-  test_built_wheels_macos_arm:
-    name: Test built wheels (macOS Apple Silicon)
-    needs: build_wheels_macos_arm
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
-    steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Download built wheels
-        uses: actions/download-artifact@v4
-        with:
-          pattern: cibw-wheels-macos-*
-          path: dist
-          merge-multiple: true
-
-      - name: Install matching wheel and run tests
-        run: |
-          python -m pip install --upgrade pip setuptools
-          python -m pip install pytest
-
-          PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-          PLATFORM=$(python -c "import distutils.util; print(distutils.util.get_platform().replace('-', '_').replace('.', '_'))")
-
-          echo "Looking for wheel for Python: $PY_VER on Platform: $PLATFORM"
-          WHEEL=$(find dist -name "*${PY_VER}*${PLATFORM}*.whl" | head -n 1)
+          echo "Looking for wheel matching: $PY_VER and $PLATFORM_TAG"
+          WHEEL=$(find dist -name "*${PY_VER}*${PLATFORM_TAG}*.whl" | head -n 1)
 
           if [ -z "$WHEEL" ]; then
-            echo "No matching wheel found for $PY_VER on $PLATFORM"
+            echo "No matching wheel found for $PY_VER on $PLATFORM_TAG"
             echo "Available wheels:"
             find dist -name "*.whl"
             exit 1
