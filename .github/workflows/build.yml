@@ -118,7 +118,7 @@ jobs:
       - name: Verify wheel bundling (macOS only)
         if: runner.os == 'macOS'
         run: |
-          pip install delocate
+          python -m pip install delocate
           delocate-listdeps wheelhouse/*.whl
           delocate-wheel -w fixed_wheels/ -v wheelhouse/*.whl
          
