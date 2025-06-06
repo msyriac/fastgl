@@ -96,20 +96,21 @@ jobs:
       - uses: actions/checkout@v4
 
 
-      - name: Install LLVM + libomp
+      # ---------- install compiler + runtime ---------- #
+      - name: Install LLVM (+OpenMP runtime)
         run: |
           brew install llvm libomp
-          # put the new compiler ahead of /usr/bin
-          echo "PATH=/opt/homebrew/opt/llvm/bin:$PATH"           >> $GITHUB_ENV
-          # make Meson/CMake/etc pick up the right compiler
-          echo "CC=clang"                                        >> $GITHUB_ENV
-          echo "CXX=clang++"                                     >> $GITHUB_ENV
-          # headers & linker path for libomp
-          echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include"       >> $GITHUB_ENV
-          echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib \
-                       -Wl,-rpath,/opt/homebrew/opt/llvm/lib \
-                       -lomp"                                    >> $GITHUB_ENV
+          LLVM_PREFIX="$(brew --prefix llvm)"
 
+          # put the OpenMP-enabled clang/clang++ first in PATH
+          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> $GITHUB_ENV
+          echo "CC=${LLVM_PREFIX}/bin/clang"   >> $GITHUB_ENV
+          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> $GITHUB_ENV
+
+          # headers & linker path for libomp ­— works on both Intel (/usr/local)
+          # and Apple Silicon (/opt/homebrew)
+          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib -lomp" >> $GITHUB_ENV
         
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -143,19 +144,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM + libomp
+
+      # ---------- install compiler + runtime ---------- #
+      - name: Install LLVM (+OpenMP runtime)
         run: |
           brew install llvm libomp
-          # put the new compiler ahead of /usr/bin
-          echo "PATH=/opt/homebrew/opt/llvm/bin:$PATH"           >> $GITHUB_ENV
-          # make Meson/CMake/etc pick up the right compiler
-          echo "CC=clang"                                        >> $GITHUB_ENV
-          echo "CXX=clang++"                                     >> $GITHUB_ENV
-          # headers & linker path for libomp
-          echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include"       >> $GITHUB_ENV
-          echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib \
-                       -Wl,-rpath,/opt/homebrew/opt/llvm/lib \
-                       -lomp"                                    >> $GITHUB_ENV
+          LLVM_PREFIX="$(brew --prefix llvm)"
+
+          # put the OpenMP-enabled clang/clang++ first in PATH
+          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> $GITHUB_ENV
+          echo "CC=${LLVM_PREFIX}/bin/clang"   >> $GITHUB_ENV
+          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> $GITHUB_ENV
+
+          # headers & linker path for libomp ­— works on both Intel (/usr/local)
+          # and Apple Silicon (/opt/homebrew)
+          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib -lomp" >> $GITHUB_ENV
         
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
