@@ -56,7 +56,9 @@ jobs:
         # The built-in fortran compiler does not link to gfortran (just numbered versions)
         # and build_ext does not play nicely with that. So we link gfortran-X to gfortran.
         run: |
+          ln -s $CXX $(dirname $(which $CXX))/g++
           ln -s $FC $(dirname $(which $FC))/gfortran
+          ln -s $CC $(dirname $(which $CC))/gcc
           echo "Using FC=$FC CXX=$CXX CC=$CC"
           python -m pip install .
 
