@@ -184,7 +184,7 @@ jobs:
 
   test_wheels_macos:
     name: Test built wheels on ${{ matrix.os }}
-    needs: [build_wheels_macos, build_wheels_macos_arm]
+    needs: [build_wheels_macos]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -240,7 +240,7 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_wheels_ubuntu, build_wheels_macos, build_sdist, build_wheels_macos_arm]
+    needs: [build_wheels_ubuntu, build_wheels_macos, build_sdist]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
