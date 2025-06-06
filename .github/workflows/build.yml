@@ -78,6 +78,8 @@ jobs:
         
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
+        env:
+          CIBW_SKIP: "pp*"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -120,6 +122,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch }}
+          CIBW_SKIP: "pp*"
 
           # compile with OpenMP flags
           CIBW_ENVIRONMENT_MACOS: |
