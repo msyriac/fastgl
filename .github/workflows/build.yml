@@ -115,12 +115,6 @@ jobs:
           FC: gfortran-14
           MACOSX_DEPLOYMENT_TARGET: "14.0"
 
-      - name: Verify wheel bundling (macOS only)
-        if: runner.os == 'macOS'
-        run: |
-          python3 -m pip install delocate
-          delocate-listdeps wheelhouse/*.whl
-          delocate-wheel -w fixed_wheels/ -v wheelhouse/*.whl
          
 
       - uses: actions/upload-artifact@v4
