@@ -85,98 +85,71 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build macOS wheel (${{ matrix.os }} / ${{ matrix.cibw_arch }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [macos-13]
+        include:
+          # Intel runner → x86_64 wheel
+          - os: macos-13
+            cibw_arch: x86_64
+          # Apple-silicon runner → arm64 wheel
+          - os: macos-14
+            cibw_arch: arm64
 
     steps:
       - uses: actions/checkout@v4
 
-
-      # ---------- install compiler + runtime ---------- #
-      - name: Install LLVM (+OpenMP runtime)
+      # ---------- 1 · compiler + single OpenMP runtime ---------- #
+      - name: Install LLVM + pinned libomp
         run: |
-          brew install llvm libomp
+          brew install llvm libomp@14
+          brew link --force libomp@14       # ensure a stable path
           LLVM_PREFIX="$(brew --prefix llvm)"
 
-          # put the OpenMP-enabled clang/clang++ first in PATH
-          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> $GITHUB_ENV
-          echo "CC=${LLVM_PREFIX}/bin/clang"   >> $GITHUB_ENV
-          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> $GITHUB_ENV
+          # Put clang/clang++ first in PATH
+          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> "$GITHUB_ENV"
+          echo "CC=${LLVM_PREFIX}/bin/clang"   >> "$GITHUB_ENV"
+          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> "$GITHUB_ENV"
 
-          # headers & linker path for libomp ­— works on both Intel (/usr/local)
-          # and Apple Silicon (/opt/homebrew)
-          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> $GITHUB_ENV
-          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib -lomp" >> $GITHUB_ENV
-        
+          # Compiler & linker flags: rely on system libomp, expose it via @rpath
+          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -lomp -Wl,-rpath,@loader_path -Wl,-rpath,${LLVM_PREFIX}/lib" >> "$GITHUB_ENV"
+
+      # ---------- 2 · build & “repair” wheel (no libomp copied) ---------- #
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          # Tell clang and gfortran to emit calls that the **LLVM** runtime understands
-          #   - clang/clang++ just need -fopenmp
-          #   - gfortran ≥ 10 needs the explicit selector -fopenmp=libomp
+          # Arch to build for this runner (x86_64 or arm64)
+          CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch }}
+
+          # Compiler flags for OpenMP
           CIBW_ENVIRONMENT_MACOS: |
             CFLAGS="-O3 -fopenmp"
             CXXFLAGS="-O3 -fopenmp"
             FFLAGS="-O3 -fopenmp=libomp"
             LDFLAGS="${LDFLAGS}"
-            
+
+          # *** key line: depend on libomp.dylib but DON'T bundle it ***
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
+            delocate-wheel -w {dest_dir}
+                           --require-link libomp.dylib
+                           --require-archs x86_64,arm64
+                           {wheel}
+
+          # Oldest macOS the wheel will run on (Intel & Apple)
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
+        with:
+          output-dir: wheelhouse
 
+      # ---------- 3 · upload artefact ---------- #
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
+          name: cibw-wheels-${{ matrix.os }}-${{ matrix.cibw_arch }}
+          path: wheelhouse/*.whl
           
-  build_wheels_macos_arm:
-
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [macos-latest]
-
-    steps:
-      - uses: actions/checkout@v4
-
-
-      # ---------- install compiler + runtime ---------- #
-      - name: Install LLVM (+OpenMP runtime)
-        run: |
-          brew install llvm libomp
-          LLVM_PREFIX="$(brew --prefix llvm)"
-
-          # put the OpenMP-enabled clang/clang++ first in PATH
-          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> $GITHUB_ENV
-          echo "CC=${LLVM_PREFIX}/bin/clang"   >> $GITHUB_ENV
-          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> $GITHUB_ENV
-
-          # headers & linker path for libomp ­— works on both Intel (/usr/local)
-          # and Apple Silicon (/opt/homebrew)
-          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> $GITHUB_ENV
-          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -Wl,-rpath,${LLVM_PREFIX}/lib -lomp" >> $GITHUB_ENV
-        
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
-        env:
-          CIBW_ENVIRONMENT_MACOS: |
-            CFLAGS="-O3 -fopenmp"
-            CXXFLAGS="-O3 -fopenmp"
-            FFLAGS="-O3 -fopenmp=libomp"
-            LDFLAGS="${LDFLAGS}"
-            
-          MACOSX_DEPLOYMENT_TARGET: "14.0"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
-
   test_wheels_linux:
     name: Test built wheels on Linux
     needs: [build_wheels_ubuntu]
