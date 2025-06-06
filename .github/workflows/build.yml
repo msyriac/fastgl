@@ -118,7 +118,7 @@ jobs:
       - name: Verify wheel bundling (macOS only)
         if: runner.os == 'macOS'
         run: |
-          python -m pip install delocate
+          python3 -m pip install delocate
           delocate-listdeps wheelhouse/*.whl
           delocate-wheel -w fixed_wheels/ -v wheelhouse/*.whl
          
@@ -185,9 +185,9 @@ jobs:
 
       - name: Install and test matching wheel
         run: |
-          python -m pip install --upgrade pip setuptools wheel meson ninja meson-python numpy scipy pybind11 pytest
+          python3 -m pip install --upgrade pip setuptools wheel meson ninja meson-python numpy scipy pybind11 pytest
 
-          python -m pip install fastgl --no-index --find-links=dist/
+          python3 -m pip install fastgl --no-index --find-links=dist/
 
           echo "Running tests against installed wheel"
           pytest -v
