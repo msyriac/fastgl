@@ -128,10 +128,12 @@ jobs:
             FFLAGS="-O3 -fopenmp=libomp"
             LDFLAGS="${LDFLAGS}"
 
-          # tell delocate to **keep** the dependency but **not** copy the dylib
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
-            delocate-wheel -w {dest_dir} --require-link libomp.dylib
-                           --require-archs x86_64,arm64 {wheel}
+            delocate-wheel -w {dest_dir}
+            -e libomp.dylib
+            --require-archs x86_64,arm64
+            {wheel}
+
 
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
