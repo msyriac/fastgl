@@ -150,7 +150,7 @@ jobs:
 
   test_wheels_linux:
     name: Test built wheels on Linux
-    needs: [build_wheels]
+    needs: [build_wheels_ubuntu]
     runs-on: ubuntu-latest
 
     strategy:
@@ -182,7 +182,7 @@ jobs:
 
   test_wheels_macos:
     name: Test built wheels on ${{ matrix.os }}
-    needs: [build_wheels, build_wheels_macos_arm]
+    needs: [build_wheels_macos, build_wheels_macos_arm]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
