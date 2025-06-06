@@ -94,8 +94,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Install OpenMP runtime (macOS only)
-        run: brew install libomp
+
+
+      - name: Install LLVM + libomp
+        run: |
+          brew install llvm libomp
+          # put the new compiler ahead of /usr/bin
+          echo "PATH=/opt/homebrew/opt/llvm/bin:$PATH"           >> $GITHUB_ENV
+          # make Meson/CMake/etc pick up the right compiler
+          echo "CC=clang"                                        >> $GITHUB_ENV
+          echo "CXX=clang++"                                     >> $GITHUB_ENV
+          # headers & linker path for libomp
+          echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include"       >> $GITHUB_ENV
+          echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib \
+                       -Wl,-rpath,/opt/homebrew/opt/llvm/lib \
+                       -lomp"                                    >> $GITHUB_ENV
+
         
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -107,7 +121,7 @@ jobs:
             CFLAGS="-O3 -fopenmp"
             CXXFLAGS="-O3 -fopenmp"
             FFLAGS="-O3 -fopenmp=libomp"
-            LDFLAGS="-fopenmp -lomp"
+            LDFLAGS="${LDFLAGS}"
             
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
@@ -129,8 +143,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install OpenMP runtime
-        run: brew install libomp
+      - name: Install LLVM + libomp
+        run: |
+          brew install llvm libomp
+          # put the new compiler ahead of /usr/bin
+          echo "PATH=/opt/homebrew/opt/llvm/bin:$PATH"           >> $GITHUB_ENV
+          # make Meson/CMake/etc pick up the right compiler
+          echo "CC=clang"                                        >> $GITHUB_ENV
+          echo "CXX=clang++"                                     >> $GITHUB_ENV
+          # headers & linker path for libomp
+          echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include"       >> $GITHUB_ENV
+          echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib \
+                       -Wl,-rpath,/opt/homebrew/opt/llvm/lib \
+                       -lomp"                                    >> $GITHUB_ENV
         
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
@@ -139,7 +164,7 @@ jobs:
             CFLAGS="-O3 -fopenmp"
             CXXFLAGS="-O3 -fopenmp"
             FFLAGS="-O3 -fopenmp=libomp"
-            LDFLAGS="-fopenmp -lomp"
+            LDFLAGS="${LDFLAGS}"
             
           MACOSX_DEPLOYMENT_TARGET: "14.0"
 
