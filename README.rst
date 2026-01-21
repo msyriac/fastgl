@@ -14,10 +14,10 @@ quadrature given the quadrature order.
 
 .. code-block:: python
 
-		>>> from fastgl import roots_legendre
+		>>> import fastgl
 		>>> N = 100
-		>>> mu, w_mu = roots_legendre(N) # FastGL calculation
-		>>> mu, w_mu = roots_legendre_brute(N) # Classical Iterative calculation
+		>>> mu, w_mu = fastgl.roots_legendre(N) # FastGL calculation
+		>>> mu, w_mu = fastgl.roots_legendre_brute(N) # Classical Iterative calculation
 
 Here, ``mu`` is a numpy array containing the cosine of the sample points (ranging from -1 to 1) and ``w_mu`` is a numpy array containing the corresponding quadrature weights.
 
