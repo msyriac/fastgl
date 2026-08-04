@@ -9,23 +9,24 @@ jobs:
 
     strategy:
       matrix:
-        python: ["3.13", "3.12", "3.11", "3.10"]
+        python: ["3.14", "3.13", "3.12", "3.11", "3.10"]
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      
+
       - name: Run Tests (Linux)
         run: |
           python -m pip install --upgrade pip setuptools wheel meson ninja meson-python numpy scipy pybind11
           python -m pip install --no-build-isolation --editable '.[test]'
           pytest --cov --cov-report html --cov-report xml --cov-report annotate -s
-          
-      - uses: codecov/codecov-action@v2
+
+      - uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
           verbose: true # optional (default = false)
 
   test-macos:
@@ -42,15 +43,14 @@ jobs:
         run: |
           brew install gcc@14
           echo "Using $(gcc-14 --version | head -1)"
-        
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install Dependencies (MacOS)
         run: |
-          python -m pip install --upgrade pip setuptools wheel pybind11 pytest numpy scipy 
-          
+          python -m pip install --upgrade pip setuptools wheel pybind11 pytest numpy scipy
 
       - name: Install Package (MacOS)
         # The built-in fortran compiler does not link to gfortran (just numbered versions)
@@ -75,11 +75,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.4.1
         env:
-          CIBW_SKIP: "pp*"
+          # CPython + glibc only, for fast builds:
+          #  - pp*          PyPy (opt-in by default in cibuildwheel v3, kept for clarity)
+          #  - *-musllinux* Alpine/musl wheels
+          #  - cp*t-*       free-threaded CPython builds (on by default for 3.14 in v3.x)
+          # Note: cibuildwheel v3 also builds Python 3.14 wheels by default and
+          # tags Linux wheels manylinux_2_28 (was manylinux2014 in v2).
+          CIBW_SKIP: "pp* *-musllinux* cp*t-*"
+          # Full meson/compiler output in the CI log; remove once builds are stable.
+          CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,54 +95,63 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_wheels_macos:
+    name: Build ${{ matrix.cibw_arch }} wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13   # Intel → x86_64 wheel
-            cibw_arch: x86_64
-          - os: macos-14   # Apple-Silicon → arm64 wheel
+          # Apple Silicon. macos-14 is the oldest available arm64 image.
+          - os: macos-14
             cibw_arch: arm64
+            # conda-forge llvm-openmp (min macOS ~11), NOT Homebrew's bottle
+            # (whose min is the runner's own macOS, failing delocate's version
+            # check for a 13.0-tagged wheel). Same packages scikit-learn vendors.
+            omp_url: "https://anaconda.org/conda-forge/llvm-openmp/11.1.0/download/osx-arm64/llvm-openmp-11.1.0-hf3c4609_1.tar.bz2"
+          # Intel. macos-13 was retired in Dec 2025; macos-15-intel is the last
+          # x86_64 image GitHub will offer (available through ~Aug 2027).
+          - os: macos-15-intel
+            cibw_arch: x86_64
+            # min macOS ~10.13
+            omp_url: "https://anaconda.org/conda-forge/llvm-openmp/11.1.0/download/osx-64/llvm-openmp-11.1.0-hda6cdc1_1.tar.bz2"
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM + libomp
+      # ---------- 1 · OpenMP runtime with a LOW minimum macOS ---------- #
+      - name: Install OpenMP runtime (conda-forge llvm-openmp)
         run: |
-          brew install llvm libomp          # unversioned, current LLVM 18.x
-          LLVM_PREFIX="$(brew --prefix llvm)"
+          mkdir -p "$HOME/libomp-prefix"
+          curl -sSL "${{ matrix.omp_url }}" | tar -xj -C "$HOME/libomp-prefix"
+          ls "$HOME/libomp-prefix/lib"
+          echo "LIBOMP_PREFIX=$HOME/libomp-prefix" >> "$GITHUB_ENV"
 
-          # put clang/clang++ first in PATH
-          echo "PATH=${LLVM_PREFIX}/bin:$PATH" >> "$GITHUB_ENV"
-          echo "CC=${LLVM_PREFIX}/bin/clang"   >> "$GITHUB_ENV"
-          echo "CXX=${LLVM_PREFIX}/bin/clang++" >> "$GITHUB_ENV"
-
-          # headers & linker path for the system libomp
-          echo "CPPFLAGS=-I${LLVM_PREFIX}/include" >> "$GITHUB_ENV"
-          echo "LDFLAGS=-L${LLVM_PREFIX}/lib -lomp \
-                       -Wl,-rpath,@loader_path \
-                       -Wl,-rpath,${LLVM_PREFIX}/lib" >> "$GITHUB_ENV"
-
+      # ---------- 2 · build with Apple clang, vendor libomp INTO the wheel ---------- #
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch }}
-          CIBW_SKIP: "pp*"
+          # CPython only, no free-threaded builds (see Linux job for details).
+          CIBW_SKIP: "pp* cp*t-*"
+          # Full meson/compiler output in the CI log; remove once builds are stable.
+          CIBW_BUILD_VERBOSITY: 1
 
-          # compile with OpenMP flags
+          # Apple clang requires -Xpreprocessor to accept -fopenmp.
+          # This mirrors scikit-learn / xgboost's macOS wheel builds.
           CIBW_ENVIRONMENT_MACOS: |
-            CFLAGS="-O3 -fopenmp"
-            CXXFLAGS="-O3 -fopenmp"
-            FFLAGS="-O3 -fopenmp=libomp"
-            LDFLAGS="${LDFLAGS}"
+            CC=/usr/bin/clang
+            CXX=/usr/bin/clang++
+            CPPFLAGS="-Xpreprocessor -fopenmp -I$LIBOMP_PREFIX/include"
+            CFLAGS="-O3 -Xpreprocessor -fopenmp -I$LIBOMP_PREFIX/include"
+            CXXFLAGS="-O3 -Xpreprocessor -fopenmp -I$LIBOMP_PREFIX/include"
+            LDFLAGS="-Wl,-rpath,$LIBOMP_PREFIX/lib -L$LIBOMP_PREFIX/lib -lomp"
 
+          # Default delocate behaviour: copy libomp into fastgl/.dylibs and
+          # rewrite the load command to @loader_path/.dylibs/libomp.dylib.
+          # Do NOT add `-e libomp.dylib` here -- that produces a wheel that
+          # only imports on a machine with an OpenMP runtime already installed.
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
-            delocate-wheel -w {dest_dir}
-            -e libomp.dylib
-            --require-archs x86_64,arm64
-            {wheel}
-
+            delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}
 
           MACOSX_DEPLOYMENT_TARGET: "13.0"
 
@@ -146,7 +163,66 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ matrix.cibw_arch }}
           path: wheelhouse/*.whl
 
-          
+  smoke_test_macos_wheels:
+    name: Smoke-test ${{ matrix.cibw_arch }} wheel (clean runner)
+    needs: [build_wheels_macos]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            cibw_arch: arm64
+          - os: macos-15-intel
+            cibw_arch: x86_64
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cibw-wheels-macos*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # This runner never ran `brew install`, so any un-vendored dependency
+      # fails here rather than after the wheel is on PyPI. --no-index also
+      # catches build-only packages wrongly declared as runtime dependencies.
+      - name: Install and import
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy threadpoolctl
+          python -m pip install --no-index --find-links dist fastgl
+          python -c "import fastgl; print(fastgl.__file__)"
+
+      - name: Check for build-machine library paths
+        run: |
+          SO=$(python -c "import pathlib,sysconfig;print(next(pathlib.Path(sysconfig.get_paths()['purelib'],'fastgl').glob('_fastgl*.so')))")
+          otool -L "$SO"
+          if otool -L "$SO" | grep -qE '/opt/homebrew|/usr/local/opt'; then
+            echo "::error::wheel references build-machine library paths; delocate did not vendor them"
+            exit 1
+          fi
+
+      # Guard against silently shipping a serial build: importing fastgl must
+      # load an OpenMP runtime (the vendored libomp), and it must come from
+      # inside the wheel, not from a system/Homebrew path.
+      - name: Verify OpenMP threading is enabled
+        run: |
+          python - <<'EOF'
+          import fastgl
+          from threadpoolctl import threadpool_info
+
+          omp = [d for d in threadpool_info() if d.get("user_api") == "openmp"]
+          for d in omp:
+              print(f'{d["filepath"]}  (num_threads={d["num_threads"]})')
+
+          assert omp, "No OpenMP runtime loaded: wheel was built without OpenMP support"
+          assert any("fastgl" in d["filepath"] for d in omp), \
+              "OpenMP runtime loaded from outside the wheel; libomp was not vendored"
+          EOF
 
   build_sdist:
     name: Build source distribution
@@ -161,10 +237,7 @@ jobs:
 
       - name: Build sdist
         run: |
-          python -m pip install -U pip
-          python -m pip install -U setuptools
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install numpy pybind11 scipy
           python -m pip install build
           python -m build . --sdist
 
@@ -174,7 +247,7 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_wheels_ubuntu, build_wheels_macos, build_sdist]
+    needs: [build_wheels_ubuntu, build_wheels_macos, smoke_test_macos_wheels, build_sdist]
     runs-on: ubuntu-latest
     # upload to PyPI on every tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
@@ -192,4 +265,3 @@ jobs:
           user: __token__
           password: ${{ secrets.PYPI_TOKEN }}
           # To test: repository_url: https://test.pypi.org/legacy/
-
